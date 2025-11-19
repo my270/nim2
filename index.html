@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Jeu de Nim - Activité Élève</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    /* Style spécifique pour les inputs dans le SVG (foreignObject) */
+    .node-input {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      border: none;
+      background: transparent;
+      outline: none;
+      resize: none;
+      font-size: 14px; /* Un peu plus petit pour bien tenir */
+      line-height: 1.3;
+      padding: 0.5rem;
+      text-align: center;
+      font-family: 'Inter', sans-serif; 
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .node-input:focus {
+      background-color: rgba(255, 255, 255, 0.5);
+      box-shadow: inset 0 0 0 2px rgba(99, 102, 241, 0.5);
+      border-radius: 6px;
+    }
+    
+    /* Styles pour l'impression */
+    @media print {
+      @page { margin: 1cm; }
+      body { background: white; font-size: 12pt; }
+      #header, #toolbar-container, .btn-primary, .btn-secondary { display: none !important; }
+      .sheet { 
+        box-shadow: none !important; 
+        border: 1px solid #ccc !important; 
+        margin-bottom: 2rem; 
+        page-break-inside: avoid;
+      }
+      /* Force l'affichage de toutes les étapes */
+      .step, #flowchart-section { display: block !important; }
+      /* Cache les zones vides du drag & drop source si vide à l'impression */
+      #q4-source:empty { display: none; }
+      textarea, input { border: 1px solid #ddd; }
+    }
+
+    /* Drag and Drop Styles */
+    .draggable-source {
+      min-height: 300px;
+      background-color: #f8fafc;
+      border-radius: 0.5rem;
+      border: 1px solid #e2e8f0;
+    }
+    .draggable-target {
+      min-height: 300px;
+      background-color: #fff;
+      border: 2px dashed #cbd5e1;
+      border-radius: 0.5rem;
+    }
+    .draggable-target.drag-over {
+      background-color: #eff6ff;
+      border-color: #6366f1;
+    }
+  </style>
+</head>
+<body class="font-sans bg-slate-100 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- En-tête -->
+  <header id="header" class="bg-white shadow-sm sticky top-0 z-10">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-indigo-900">Jeu de Nim</h1>
+          <p class="text-sm text-slate-500">Fiche d'activité algorithmique</p>
+        </div>
+        
+        <!-- Bouton Imprimer -->
+        <div id="toolbar-container">
+          <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+            Imprimer en PDF
+          </button>
+        </div>
+      </div>
+
+      <!-- Champs Identité -->
+      <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+        <div>
+          <label for="prenom" class="block text-xs font-bold uppercase text-slate-500">Prénom</label>
+          <input id="prenom" type="text" class="mt-1 block w-full rounded border-slate-300 bg-white py-1.5 px-3 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="..." />
+        </div>
+        <div>
+          <label for="nom" class="block text-xs font-bold uppercase text-slate-500">Nom</label>
+          <input id="nom" type="text" class="mt-1 block w-full rounded border-slate-300 bg-white py-1.5 px-3 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="..." />
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-8">
+
+    <!-- Bloc Questions (Stepper) -->
+    <section class="sheet bg-white shadow-lg rounded-xl overflow-hidden border-t-4 border-indigo-500">
+      <div class="p-6 sm:p-8">
+        
+        <!-- Question 1 -->
+        <div class="step" data-step="1">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-sm">1</span>
+            <h3 class="text-lg font-medium text-slate-900">Observation <span class="text-sm font-normal text-slate-400 ml-2">(/ 2 pts)</span></h3>
+          </div>
+          <p class="text-slate-600 mb-3">Vous avez joué plusieurs parties contre l'ordinateur. Avez-vous remarqué quelque chose de particulier ? L'ordinateur gagne-t-il par hasard ou y a-t-il une logique ?</p>
+          <textarea id="q1" rows="3" class="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 bg-slate-50" placeholder="Écrivez votre réponse ici..."></textarea>
+          <div class="mt-6 flex justify-end">
+            <button type="button" class="btn-primary" id="s1" disabled>Suivant &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="step hidden" data-step="2">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-bold text-sm">2</span>
+            <h3 class="text-lg font-medium text-slate-900">Analyse <span class="text-sm font-normal text-slate-400 ml-2">(/ 2 pts)</span></h3>
+          </div>
+          <p class="text-slate-600 mb-3">Si l'ordinateur suit une logique et ne joue pas au hasard, qu'est-ce qui lui permet de toujours prendre la bonne décision à chaque coup ?</p>
+          <textarea id="q2" rows="3" class="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 bg-slate-50" placeholder="Écrivez votre réponse ici..."></textarea>
+          <div class="mt-6 flex justify-between">
+            <button class="btn-secondary" id="b2" type="button">&larr; Retour</button>
+            <button class="btn-primary" id="s2" type="button" disabled>Suivant &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="step hidden" data-step="3">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700 font-bold text-sm">3</span>
+            <h3 class="text-lg font-medium text-slate-900">Vocabulaire <span class="text-sm font-normal text-slate-400 ml-2">(/ 3 pts)</span></h3>
+          </div>
+          <p class="text-slate-600 mb-3">Quel mot utilise-t-on en informatique pour désigner une suite d'instructions précises qui permettent d'analyser et de résoudre un problème ?</p>
+          <input id="q3" type="text" class="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 bg-slate-50" placeholder="Un seul mot..." />
+          <div class="mt-6 flex justify-between">
+            <button class="btn-secondary" id="b3" type="button">&larr; Retour</button>
+            <button class="btn-primary" id="s3" type="button" disabled>Suivant &rarr;</button>
+          </div>
+        </div>
+
+        <!-- Question 4 (Drag & Drop) -->
+        <div class="step hidden" data-step="4">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="flex items-center justify-center w-8 h-8 rounded-full bg-rose-100 text-rose-700 font-bold text-sm">4</span>
+            <h3 class="text-lg font-medium text-slate-900">Logique <span class="text-sm font-normal text-slate-400 ml-2">(/ 6 pts)</span></h3>
+          </div>
+          <p class="text-slate-600 mb-4">Remettez les étapes de l'algorithme dans le bon ordre en faisant glisser les blocs de gauche vers la zone de droite.</p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Source (Mélangées) -->
+            <div>
+              <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Étapes en désordre</h4>
+              <div id="q4-source" class="draggable-source p-3 space-y-2">
+                <!-- Ordre mélangé (4, 3, 1, 6, 2, 5) -->
+                <div id="item-4" draggable="true" class="q4-item p-3 rounded bg-white border border-slate-200 shadow-sm cursor-grab hover:border-indigo-300 active:cursor-grabbing select-none">Calculer le coup gagnant : 4 - (nombre retiré par l'adversaire).</div>
+                <div id="item-3" draggable="true" class="q4-item p-3 rounded bg-white border border-slate-200 shadow-sm cursor-grab hover:border-indigo-300 active:cursor-grabbing select-none">L'adversaire retire 1, 2 ou 3 bâtons.</div>
+                <div id="item-1" draggable="true" class="q4-item p-3 rounded bg-white border border-slate-200 shadow-sm cursor-grab hover:border-indigo-300 active:cursor-grabbing select-none">Poser 16 bâtons. L'adversaire commence.</div>
+                <div id="item-6" draggable="true" class="q4-item p-3 rounded bg-white border border-slate-200 shadow-sm cursor-grab hover:border-indigo-300 active:cursor-grabbing select-none">S'il reste 0 bâton, l'adversaire perd. Sinon, retour à la boucle.</div>
+                <div id="item-2" draggable="true" class="q4-item p-3 rounded bg-white border border-slate-200 shadow-sm cursor-grab hover:border-indigo-300 active:cursor-grabbing select-none">Tant qu'il reste au moins un bâton...</div>
+                <div id="item-5" draggable="true" class="q4-item p-3 rounded bg-white border border-slate-200 shadow-sm cursor-grab hover:border-indigo-300 active:cursor-grabbing select-none">Retirer ce nombre de bâtons.</div>
+              </div>
+            </div>
+            
+            <!-- Target -->
+            <div>
+              <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Votre Algorithme</h4>
+              <div id="q4-target" class="draggable-target p-3 space-y-2 relative">
+                <div class="absolute inset-0 flex items-center justify-center text-slate-300 text-sm pointer-events-none -z-0">Déposez les blocs ici</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6 flex justify-between">
+            <button class="btn-secondary" id="b4" type="button">&larr; Retour</button>
+            <button class="btn-primary" id="s4" type="button" disabled>Valider et voir l'Algorigramme</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Bloc Algorigramme (Caché au départ) -->
+    <section id="flowchart-section" class="sheet hidden bg-white shadow-lg rounded-xl overflow-hidden border-t-4 border-teal-500">
+      <div class="p-6 sm:p-8 border-b border-slate-100">
+        <div class="flex items-center gap-3">
+           <span class="flex items-center justify-center w-8 h-8 rounded-full bg-teal-100 text-teal-700 font-bold text-sm">5</span>
+           <h2 class="text-xl font-semibold text-slate-800">Algorigramme à compléter <span class="text-sm font-normal text-slate-400 ml-2">(/ 7 pts)</span></h2>
+        </div>
+        <p class="mt-2 text-slate-600 ml-11">Complétez le schéma ci-dessous en cliquant dans les cases vides. Aidez-vous de l'ordre trouvé à la question précédente.</p>
+      </div>
+
+      <div class="p-4 overflow-x-auto flex justify-center bg-slate-50">
+        <!-- ALGORIGRAMME CORRIGÉ ET VIDE -->
+        <svg width="600" height="900" viewBox="0 0 900 1100" role="img" aria-label="Algorigramme basé sur la logique des 4 allumettes restantes">
+          <defs>
+            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L0,6 L9,3 z" fill="#475569" />
+            </marker>
+          </defs>
+
+          <!-- 1. DEBUT -->
+          <ellipse cx="450" cy="80" rx="120" ry="40" fill="#e0e7ff" stroke="#4338ca" stroke-width="2"/>
+          <foreignObject x="350" y="60" width="200" height="40">
+             <div xmlns="http://www.w3.org/1999/xhtml" class="h-full flex items-center justify-center">
+              <span class="font-bold text-indigo-900">DÉBUT</span>
+            </div>
+          </foreignObject>
+          <line x1="450" y1="120" x2="450" y2="150" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+          <!-- 2. INITIALISATION (n1) -->
+          <rect x="250" y="150" width="400" height="70" rx="10" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+          <foreignObject x="260" y="155" width="380" height="60">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <textarea id="n1" class="node-input" placeholder="Étape d'initialisation..."></textarea>
+            </div>
+          </foreignObject>
+          <line x1="450" y1="220" x2="450" y2="250" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+          <!-- 3. ACTION ADVERSAIRE (n2) - Début du tour de boucle -->
+          <rect x="250" y="250" width="400" height="70" rx="10" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+          <foreignObject x="260" y="255" width="380" height="60">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <textarea id="n2" class="node-input" placeholder="Action 1 (Adversaire)..."></textarea>
+            </div>
+          </foreignObject>
+          <line x1="450" y1="320" x2="450" y2="350" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+          <!-- 4. ACTION JOUEUR (n3) -->
+          <rect x="250" y="350" width="400" height="70" rx="10" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+          <foreignObject x="260" y="355" width="380" height="60">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <textarea id="n3" class="node-input" placeholder="Action 2 (Joueur)..."></textarea>
+            </div>
+          </foreignObject>
+          <line x1="450" y1="420" x2="450" y2="450" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+          <!-- 5. CONDITION DE FIN DE PHASE (n4) -->
+          <polygon points="450,450 650,530 450,610 250,530" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+          <foreignObject x="320" y="495" width="260" height="70">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <textarea id="n4" class="node-input text-amber-900 font-medium" placeholder="Condition de la boucle ?"></textarea>
+            </div>
+          </foreignObject>
+          
+          <!-- Ligne OUI (Boucle simple - Remonte) -->
+          <text x="660" y="530" fill="#059669" font-weight="bold">OUI</text>
+          <path d="M650,530 L750,530 L750,285 L650,285" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="5,5"/>
+          
+          <!-- Ligne NON (Phase finale - Descend) -->
+          <text x="435" y="635" fill="#dc2626" font-weight="bold">NON</text>
+          <line x1="450" y1="610" x2="450" y2="640" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+          <!-- 6. ACTION FINALE ADVERSAIRE (n5) -->
+          <rect x="250" y="640" width="400" height="70" rx="10" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+          <foreignObject x="260" y="645" width="380" height="60">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <textarea id="n5" class="node-input" placeholder="Action finale 1 (Adversaire)..."></textarea>
+            </div>
+          </foreignObject>
+          <line x1="450" y1="710" x2="450" y2="740" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+          
+          <!-- 7. ACTION GAGNANTE JOUEUR (n6) -->
+          <rect x="250" y="740" width="400" height="70" rx="10" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+          <foreignObject x="260" y="745" width="380" height="60">
+            <div xmlns="http://www.w3.org/1999/xhtml">
+              <textarea id="n6" class="node-input" placeholder="Action finale 2 (Joueur)..."></textarea>
+            </div>
+          </foreignObject>
+          <line x1="450" y1="810" x2="450" y2="840" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+
+          <!-- 8. FIN -->
+          <ellipse cx="450" cy="880" rx="120" ry="40" fill="#e0e7ff" stroke="#4338ca" stroke-width="2"/>
+          <foreignObject x="350" y="860" width="200" height="40">
+             <div xmlns="http://www.w3.org/1999/xhtml" class="h-full flex items-center justify-center">
+              <span class="font-bold text-indigo-900">FIN</span>
+            </div>
+          </foreignObject>
+
+        </svg>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-6 mt-8">
+    <div class="max-w-5xl mx-auto px-4 text-center text-slate-400 text-sm">
+      <p>&copy; Activité Numérique - Algorithmique & Programmation</p>
+    </div>
+  </footer>
+
+  <!-- Scripts Interaction -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      
+      // --- Logique du Stepper ---
+      const steps = [1, 2, 3, 4];
+      
+      function showStep(stepNum) {
+        // Masquer toutes les étapes
+        document.querySelectorAll('.step').forEach(el => {
+          el.classList.add('hidden');
+        });
+        // Afficher la cible
+        const target = document.querySelector(`.step[data-step="${stepNum}"]`);
+        if (target) {
+          target.classList.remove('hidden');
+          // Scroll smooth vers le haut du main
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }
+
+      // --- Validation des champs pour activer les boutons ---
+      function enableBtnOnInput(inputId, btnId) {
+        const input = document.getElementById(inputId);
+        const btn = document.getElementById(btnId);
+        if(!input || !btn) return;
+
+        const check = () => {
+          btn.disabled = !(input.value && input.value.trim().length > 0);
+          if(!btn.disabled) {
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+          } else {
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+          }
+        };
+        
+        input.addEventListener('input', check);
+        check(); // Initial check
+      }
+
+      // --- Styles boutons communs ---
+      const primaryBtnClass = "inline-flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed";
+      const secondaryBtnClass = "inline-flex items-center justify-center rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 transition-all";
+
+      document.querySelectorAll('.btn-primary').forEach(b => b.className = primaryBtnClass);
+      document.querySelectorAll('.btn-secondary').forEach(b => b.className = secondaryBtnClass);
+
+      // --- Wiring (Câblage des boutons) ---
+      
+      // Q1 -> Q2
+      enableBtnOnInput('q1', 's1');
+      document.getElementById('s1').addEventListener('click', () => showStep(2));
+
+      // Q2 -> Q3
+      enableBtnOnInput('q2', 's2');
+      document.getElementById('b2').addEventListener('click', () => showStep(1));
+      document.getElementById('s2').addEventListener('click', () => showStep(3));
+
+      // Q3 -> Q4
+      enableBtnOnInput('q3', 's3');
+      document.getElementById('b3').addEventListener('click', () => showStep(2));
+      document.getElementById('s3').addEventListener('click', () => showStep(4));
+
+      // Q4 -> Flowchart
+      document.getElementById('b4').addEventListener('click', () => showStep(3));
+
+
+      // --- DRAG AND DROP LOGIC (Q4) ---
+      const sourceZone = document.getElementById('q4-source');
+      const targetZone = document.getElementById('q4-target');
+      const s4Button = document.getElementById('s4');
+      let draggedItem = null;
+
+      // Drag Start
+      document.querySelectorAll('.q4-item').forEach(item => {
+        item.addEventListener('dragstart', (e) => {
+          draggedItem = item;
+          setTimeout(() => item.classList.add('opacity-50'), 0);
+        });
+
+        item.addEventListener('dragend', () => {
+          setTimeout(() => {
+            draggedItem.classList.remove('opacity-50');
+            draggedItem = null;
+            checkCompletion();
+          }, 0);
+        });
+      });
+
+      // Drag Over / Drop logic
+      [sourceZone, targetZone].forEach(zone => {
+        zone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          zone.classList.add('drag-over');
+        });
+
+        zone.addEventListener('dragleave', () => {
+          zone.classList.remove('drag-over');
+        });
+
+        zone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          zone.classList.remove('drag-over');
+          
+          if (draggedItem) {
+            // Logic to handle inserting between elements could be added here, 
+            // but appending is fine for this level.
+            zone.appendChild(draggedItem);
+            
+            // Remove the placeholder text if items are present
+            const placeholder = targetZone.querySelector('.absolute');
+            if(placeholder) placeholder.style.display = targetZone.children.length > 1 ? 'none' : 'flex';
+          }
+        });
+      });
+
+      function checkCompletion() {
+        // Active le bouton seulement si la source est vide (tout est déplacé)
+        const remainingItems = sourceZone.querySelectorAll('.q4-item').length;
+        const placedItems = targetZone.querySelectorAll('.q4-item').length;
+        
+        if (remainingItems === 0 && placedItems > 0) {
+          s4Button.disabled = false;
+          s4Button.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+          s4Button.disabled = true;
+          s4Button.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+      }
+
+      // Affichage final Algorigramme
+      s4Button.addEventListener('click', () => {
+        const fs = document.getElementById('flowchart-section');
+        fs.classList.remove('hidden');
+        setTimeout(() => {
+          fs.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+        
+        // Feedback bouton
+        s4Button.innerHTML = "Algorigramme affiché ci-dessous &#10003;";
+        s4Button.classList.replace('bg-indigo-600', 'bg-green-600');
+        s4Button.classList.replace('hover:bg-indigo-500', 'hover:bg-green-500');
+        s4Button.disabled = true;
+      });
+
+      // Initial setup
+      showStep(1);
+      
+      // Gérer l'impression (révéler section courante après print)
+      let currentStepBeforePrint = 1;
+      window.addEventListener('beforeprint', () => {
+         // CSS handles display:block !important, but we track state just in case
+         // Logic handled by CSS mostly
+      });
+    });
+  </script>
+</body>
+</html>
