@@ -6,6 +6,10 @@
   <title>Jeu de Nim - Activité Élève</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Bibliothèques pour l'exportation PDF direct (html2canvas capture, jspdf génère) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
   <script>
     tailwind.config = {
       theme: {
@@ -43,7 +47,7 @@
       border-radius: 6px;
     }
     
-    /* Styles pour l'impression */
+    /* Styles pour l'impression (toujours utile en fallback) */
     @media print {
       @page { margin: 1cm; }
       body { background: white; font-size: 12pt; }
@@ -91,13 +95,14 @@
           <p class="text-sm text-slate-500">Fiche d'activité algorithmique</p>
         </div>
         
-        <!-- Bouton Imprimer -->
+        <!-- Bouton Exporter PDF -->
         <div id="toolbar-container">
-          <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
+          <button onclick="exportPDF()" class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 9.75l-7.5 7.5-7.5-7.5" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 21V3" />
             </svg>
-            Imprimer en PDF
+            Exporter en PDF
           </button>
         </div>
       </div>
@@ -116,7 +121,7 @@
     </div>
   </header>
 
-  <main class="flex-grow max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-8">
+  <main id="main-content" class="flex-grow max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-8">
 
     <!-- Bloc Questions (Stepper) -->
     <section class="sheet bg-white shadow-lg rounded-xl overflow-hidden border-t-4 border-indigo-500">
@@ -145,7 +150,7 @@
           <textarea id="q2" rows="3" class="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 bg-slate-50" placeholder="Écrivez votre réponse ici..."></textarea>
           <div class="mt-6 flex justify-between">
             <button class="btn-secondary" id="b2" type="button">&larr; Retour</button>
-            <button class="btn-primary" id="s2" type="button" disabled>Suivant &rarr;</button>
+            <button type="button" class="btn-primary" id="s2" disabled>Suivant &rarr;</button>
           </div>
         </div>
 
@@ -159,7 +164,7 @@
           <input id="q3" type="text" class="block w-full rounded-lg border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-3 bg-slate-50" placeholder="Un seul mot..." />
           <div class="mt-6 flex justify-between">
             <button class="btn-secondary" id="b3" type="button">&larr; Retour</button>
-            <button class="btn-primary" id="s3" type="button" disabled>Suivant &rarr;</button>
+            <button type="button" class="btn-primary" id="s3" disabled>Suivant &rarr;</button>
           </div>
         </div>
 
@@ -197,7 +202,7 @@
 
           <div class="mt-6 flex justify-between">
             <button class="btn-secondary" id="b4" type="button">&larr; Retour</button>
-            <button class="btn-primary" id="s4" type="button" disabled>Valider et voir l'Algorigramme</button>
+            <button type="button" class="btn-primary" id="s4" disabled>Valider et voir l'Algorigramme</button>
           </div>
         </div>
 
@@ -215,7 +220,7 @@
       </div>
 
       <div class="p-4 overflow-x-auto flex justify-center bg-slate-50">
-        <!-- ALGORIGRAMME CORRIGÉ ET VIDE -->
+        <!-- ALGORIGRAMME VIDE POUR EXERCICE -->
         <svg width="600" height="900" viewBox="0 0 900 1100" role="img" aria-label="Algorigramme basé sur la logique des 4 allumettes restantes">
           <defs>
             <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
@@ -316,11 +321,77 @@
 
   <!-- Scripts Interaction -->
   <script>
+    // La fonction exportPDF est maintenant mise à jour pour utiliser jspdf/html2canvas
+    function exportPDF() {
+        // Révéler toutes les étapes pour l'exportation
+        document.querySelectorAll('.step').forEach(el => el.classList.remove('hidden'));
+        document.getElementById('flowchart-section').classList.remove('hidden');
+
+        // Préparer le nom du fichier
+        const prenom = document.getElementById('prenom').value.trim();
+        const nom = document.getElementById('nom').value.trim();
+        let filename = 'Activité-Nim';
+        if (nom || prenom) {
+            filename = `Nim_${nom.toUpperCase()}_${prenom}`;
+        }
+        filename = filename.replace(/\s+/g, '-').replace(/-$/, ''); // Nettoyage
+        
+        // Cible le contenu principal pour l'exportation
+        const input = document.getElementById('main-content');
+        
+        // Petite astuce pour rendre l'arrière-plan visible dans le PDF
+        const initialBg = document.body.style.backgroundColor;
+        document.body.style.backgroundColor = '#ffffff'; 
+
+        html2canvas(input, {
+            scale: 2, // Augmenter la résolution pour un meilleur rendu
+            useCORS: true,
+            scrollY: -window.scrollY, // Commence le scroll au sommet de l'élément
+            windowHeight: input.scrollHeight, // Capture tout le contenu
+        }).then(canvas => {
+            const { jsPDF } = window.jspdf;
+            
+            // Dimensions de la page A4 en points (approx 210 x 297 mm)
+            const pdfWidth = 210; 
+            const pdfHeight = 297; 
+            const scale = pdfWidth / canvas.width;
+            
+            // Calculer la hauteur de la page capturée après mise à l'échelle
+            let imgHeight = canvas.height * scale;
+            let imgData = canvas.toDataURL('image/png');
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            // Logique pour gérer le contenu sur plusieurs pages (si trop long)
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+
+            pdf.save(`${filename}.pdf`);
+
+            // Rétablir l'affichage et le fond initial
+            document.body.style.backgroundColor = initialBg; 
+            
+            // Masquer les étapes pour revenir à l'état interactif
+            showStep(1); 
+            document.getElementById('flowchart-section').classList.add('hidden');
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       
       // --- Logique du Stepper ---
       const steps = [1, 2, 3, 4];
-      
+      let currentStep = 1;
+
       function showStep(stepNum) {
         // Masquer toutes les étapes
         document.querySelectorAll('.step').forEach(el => {
@@ -330,6 +401,7 @@
         const target = document.querySelector(`.step[data-step="${stepNum}"]`);
         if (target) {
           target.classList.remove('hidden');
+          currentStep = stepNum;
           // Scroll smooth vers le haut du main
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -461,13 +533,6 @@
 
       // Initial setup
       showStep(1);
-      
-      // Gérer l'impression (révéler section courante après print)
-      let currentStepBeforePrint = 1;
-      window.addEventListener('beforeprint', () => {
-         // CSS handles display:block !important, but we track state just in case
-         // Logic handled by CSS mostly
-      });
     });
   </script>
 </body>
