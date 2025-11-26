@@ -9,7 +9,7 @@
   <!-- Bibliothèques pour l'exportation PDF direct (html2canvas capture, jspdf génère) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  
+
   <script>
     tailwind.config = {
       theme: {
@@ -28,7 +28,8 @@
       height: 100%;
       box-sizing: border-box;
       border: none;
-      background: transparent;
+      /* Background transparent pour l'interaction, sera blanc pour l'export */
+      background: transparent; 
       outline: none;
       resize: none;
       font-size: 14px; /* Un peu plus petit pour bien tenir */
@@ -94,7 +95,7 @@
           <h1 class="text-2xl font-bold tracking-tight text-indigo-900">Jeu de Nim</h1>
           <p class="text-sm text-slate-500">Fiche d'activité algorithmique</p>
         </div>
-        
+                
         <!-- Bouton Exporter PDF -->
         <div id="toolbar-container">
           <button onclick="exportPDF()" class="inline-flex items-center gap-2 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition-colors">
@@ -126,7 +127,7 @@
     <!-- Bloc Questions (Stepper) -->
     <section class="sheet bg-white shadow-lg rounded-xl overflow-hidden border-t-4 border-indigo-500">
       <div class="p-6 sm:p-8">
-        
+                
         <!-- Question 1 -->
         <div class="step" data-step="1">
           <div class="flex items-center gap-3 mb-4">
@@ -190,7 +191,7 @@
                 <div id="item-5" draggable="true" class="q4-item p-3 rounded bg-white border border-slate-200 shadow-sm cursor-grab hover:border-indigo-300 active:cursor-grabbing select-none">Retirer ce nombre de bâtons.</div>
               </div>
             </div>
-            
+                        
             <!-- Target -->
             <div>
               <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Votre Algorithme</h4>
@@ -205,7 +206,6 @@
             <button type="button" class="btn-primary" id="s4" disabled>Valider et voir l'Algorigramme</button>
           </div>
         </div>
-
       </div>
     </section>
 
@@ -271,11 +271,11 @@
               <textarea id="n4" class="node-input text-amber-900 font-medium" placeholder="Condition de la boucle ?"></textarea>
             </div>
           </foreignObject>
-          
+                    
           <!-- Ligne OUI (Boucle simple - Remonte) -->
           <text x="660" y="530" fill="#059669" font-weight="bold">OUI</text>
           <path d="M650,530 L750,530 L750,285 L650,285" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="5,5"/>
-          
+                    
           <!-- Ligne NON (Phase finale - Descend) -->
           <text x="435" y="635" fill="#dc2626" font-weight="bold">NON</text>
           <line x1="450" y1="610" x2="450" y2="640" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
@@ -288,7 +288,7 @@
             </div>
           </foreignObject>
           <line x1="450" y1="710" x2="450" y2="740" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
-          
+                    
           <!-- 7. ACTION GAGNANTE JOUEUR (n6) -->
           <rect x="250" y="740" width="400" height="70" rx="10" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
           <foreignObject x="260" y="745" width="380" height="60">
@@ -309,7 +309,6 @@
         </svg>
       </div>
     </section>
-
   </main>
 
   <!-- Footer -->
@@ -321,8 +320,61 @@
 
   <!-- Scripts Interaction -->
   <script>
-    // La fonction exportPDF est maintenant mise à jour pour utiliser jspdf/html2canvas
+    // Variable globale pour stocker les textareas remplacés et pouvoir les restaurer
+    let replacedTextareas = []; 
+
+    /**
+     * Remplace temporairement les textareas de l'algorigramme par des divs statiques
+     * contenant leur valeur. Ceci est nécessaire car html2canvas a souvent des difficultés
+     * à capturer correctement le contenu des inputs/textareas dynamiques dans les foreignObject.
+     */
+    function _captureTextareas() {
+        replacedTextareas = [];
+        document.querySelectorAll('#flowchart-section textarea.node-input').forEach(textarea => {
+            const parentDiv = textarea.parentElement; // Le div dans le foreignObject
+            
+            // Créer un élément statique (div) avec le contenu de l'utilisateur
+            const staticDiv = document.createElement('div');
+            // Utiliser la valeur saisie, ou le placeholder si elle est vide
+            staticDiv.textContent = textarea.value.trim() || textarea.placeholder; 
+            
+            // Appliquer les mêmes styles CSS que le textarea
+            staticDiv.className = textarea.className + ' node-static'; 
+            staticDiv.style.backgroundColor = '#ffffff'; // Forcer le fond blanc pour l'export
+            staticDiv.style.border = '1px solid #ddd'; // Ajouter une bordure pour simuler la zone remplie
+            
+            // Stocker l'original pour la restauration
+            replacedTextareas.push({
+                parent: parentDiv,
+                original: textarea,
+                temp: staticDiv
+            });
+            
+            // Remplacer le textarea par le div statique
+            parentDiv.replaceChild(staticDiv, textarea);
+        });
+    }
+
+    /**
+     * Restaure les textareas originaux à partir de l'array de sauvegarde.
+     */
+    function _restoreTextareas() {
+        replacedTextareas.forEach(item => {
+            // Remplacer le div statique par le textarea original
+            if(item.temp.parentElement) {
+                item.parent.replaceChild(item.original, item.temp);
+            }
+            // Rétablir le style transparent (celui que le CSS normal utilise)
+            item.original.style.backgroundColor = 'transparent'; 
+        });
+        replacedTextareas = [];
+    }
+
+
     function exportPDF() {
+        // 1. Préparer les inputs de l'Algorigramme pour la capture statique
+        _captureTextareas();
+
         // Révéler toutes les étapes pour l'exportation
         document.querySelectorAll('.step').forEach(el => el.classList.remove('hidden'));
         document.getElementById('flowchart-section').classList.remove('hidden');
@@ -335,7 +387,7 @@
             filename = `Nim_${nom.toUpperCase()}_${prenom}`;
         }
         filename = filename.replace(/\s+/g, '-').replace(/-$/, ''); // Nettoyage
-        
+                
         // Cible le contenu principal pour l'exportation
         const input = document.getElementById('main-content');
         
@@ -346,8 +398,14 @@
         html2canvas(input, {
             scale: 2, // Augmenter la résolution pour un meilleur rendu
             useCORS: true,
-            scrollY: -window.scrollY, // Commence le scroll au sommet de l'élément
-            windowHeight: input.scrollHeight, // Capture tout le contenu
+            // Scroll au sommet de l'élément pour une capture complète
+            scrollY: -window.scrollY,
+            windowHeight: input.scrollHeight, 
+            allowTaint: true, // Aide à capturer les éléments SVG/foreignObject
+            ignoreElements: (element) => {
+                // Ignorez le bouton "Exporter en PDF" et la navigation pour la capture
+                return element.closest('#toolbar-container') || element.closest('.btn-primary') || element.closest('.btn-secondary') || element.closest('#header');
+            }
         }).then(canvas => {
             const { jsPDF } = window.jspdf;
             
@@ -356,7 +414,7 @@
             const pdfHeight = 297; 
             const scale = pdfWidth / canvas.width;
             
-            // Calculer la hauteur de la page capturée après mise à l'échelle
+            // Calculer la hauteur de l'image capturée après mise à l'échelle
             let imgHeight = canvas.height * scale;
             let imgData = canvas.toDataURL('image/png');
 
@@ -364,12 +422,14 @@
             let heightLeft = imgHeight;
             let position = 0;
 
-            // Logique pour gérer le contenu sur plusieurs pages (si trop long)
+            // Logique pour gérer le contenu sur plusieurs pages
+            // Ajout de la première page
             pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
             heightLeft -= pdfHeight;
 
-            while (heightLeft >= 0) {
-                position = heightLeft - imgHeight;
+            // Ajout des pages suivantes si nécessaire
+            while (heightLeft > 0) {
+                position = - (imgHeight - heightLeft); // Calcule la position verticale du nouveau "crop"
                 pdf.addPage();
                 pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight);
                 heightLeft -= pdfHeight;
@@ -377,9 +437,10 @@
 
             pdf.save(`${filename}.pdf`);
 
-            // Rétablir l'affichage et le fond initial
+            // 3. Rétablir l'affichage et le fond initial
             document.body.style.backgroundColor = initialBg; 
-            
+            _restoreTextareas(); // RESTAURATION ICI
+                        
             // Masquer les étapes pour revenir à l'état interactif
             showStep(1); 
             document.getElementById('flowchart-section').classList.add('hidden');
@@ -387,7 +448,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      
+
       // --- Logique du Stepper ---
       const steps = [1, 2, 3, 4];
       let currentStep = 1;
@@ -421,7 +482,7 @@
             btn.classList.add('opacity-50', 'cursor-not-allowed');
           }
         };
-        
+                
         input.addEventListener('input', check);
         check(); // Initial check
       }
@@ -434,7 +495,7 @@
       document.querySelectorAll('.btn-secondary').forEach(b => b.className = secondaryBtnClass);
 
       // --- Wiring (Câblage des boutons) ---
-      
+            
       // Q1 -> Q2
       enableBtnOnInput('q1', 's1');
       document.getElementById('s1').addEventListener('click', () => showStep(2));
@@ -452,7 +513,6 @@
       // Q4 -> Flowchart
       document.getElementById('b4').addEventListener('click', () => showStep(3));
 
-
       // --- DRAG AND DROP LOGIC (Q4) ---
       const sourceZone = document.getElementById('q4-source');
       const targetZone = document.getElementById('q4-target');
@@ -468,7 +528,9 @@
 
         item.addEventListener('dragend', () => {
           setTimeout(() => {
-            draggedItem.classList.remove('opacity-50');
+            if (draggedItem) { // Vérification pour éviter une erreur si l'élément a été supprimé
+                draggedItem.classList.remove('opacity-50');
+            }
             draggedItem = null;
             checkCompletion();
           }, 0);
@@ -489,14 +551,14 @@
         zone.addEventListener('drop', (e) => {
           e.preventDefault();
           zone.classList.remove('drag-over');
-          
+                    
           if (draggedItem) {
-            // Logic to handle inserting between elements could be added here, 
-            // but appending is fine for this level.
+            // Insérer l'élément à la fin de la zone de drop
             zone.appendChild(draggedItem);
-            
-            // Remove the placeholder text if items are present
+                        
+            // Retirer le texte de placeholder si des items sont présents dans la cible
             const placeholder = targetZone.querySelector('.absolute');
+            // Le targetZone contient le placeholder + les items. Si > 1, il y a des items.
             if(placeholder) placeholder.style.display = targetZone.children.length > 1 ? 'none' : 'flex';
           }
         });
@@ -506,7 +568,7 @@
         // Active le bouton seulement si la source est vide (tout est déplacé)
         const remainingItems = sourceZone.querySelectorAll('.q4-item').length;
         const placedItems = targetZone.querySelectorAll('.q4-item').length;
-        
+
         if (remainingItems === 0 && placedItems > 0) {
           s4Button.disabled = false;
           s4Button.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -523,7 +585,7 @@
         setTimeout(() => {
           fs.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 100);
-        
+
         // Feedback bouton
         s4Button.innerHTML = "Algorigramme affiché ci-dessous &#10003;";
         s4Button.classList.replace('bg-indigo-600', 'bg-green-600');
